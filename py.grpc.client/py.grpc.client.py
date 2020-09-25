@@ -2,6 +2,7 @@
 import grpc
 
 from google.protobuf.timestamp_pb2 import Timestamp
+import random
 
 import enum_pb2 as Enum
 import MeterReader_pb2 as MeterReader
@@ -23,7 +24,8 @@ def main():
     
     now = Timestamp()
     now.GetCurrentTime()
-    reading = MeterReader.ReadingMessage(customerId = 1,
+    x = random.randint(1,10000)
+    reading = MeterReader.ReadingMessage(customerId = x,
                                         readingValue = 1,
                                         readingTime = now)
 

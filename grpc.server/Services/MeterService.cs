@@ -1,4 +1,5 @@
-﻿using grpc.server.Contracts;
+﻿using Google.Protobuf.WellKnownTypes;
+using grpc.server.Contracts;
 using grpc.server.Entities;
 using grpc.server.Service;
 using Grpc.Core;
@@ -19,6 +20,26 @@ namespace grpc.server.Services
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }
 
+        public override Task<Empty> Test(Empty request, ServerCallContext context)
+        {
+            return base.Test(request, context);
+        }
+
+        public override async Task<Empty> SendDiagnostics(IAsyncStreamReader<ReadingMessage> requestStream, ServerCallContext context)
+        {
+            var theTask = Task.Run(async () =>
+            {
+                await foreach (var reading in requestStream.ReadAllAsync())
+                {
+                    _logger.LogInformation($"Recived Reading:{reading}");
+                }
+            });
+
+            await theTask;
+
+            return new Empty();
+        }
+
         public async override Task<StatusMessage> AddReading(ReadingPacket request, ServerCallContext context)
         {
             var result = new StatusMessage()
@@ -32,6 +53,25 @@ namespace grpc.server.Services
                 {
                     foreach (var r in request.Readings)
                     {
+
+                        //---------test
+                        if (r.ReadingValue < 1000)
+                        {
+                            _logger.LogDebug("Reading Value below acceptable level");
+                            //throw new RpcException(Status.DefaultCancelled, "Value too low.."); => basic status error
+
+                            #region custom status error
+                            var trailer = new Metadata()
+                            {
+                                {"BadValue", r.ReadingValue.ToString()},
+                                {"Field", "ReadingValue"},
+                                {"Message", "Readings are invalid"}
+                            };
+                            throw new RpcException(new Status(StatusCode.OutOfRange, "Value too low")); // => custom status error
+                            #endregion
+                        }
+                        //---------test
+
                         var reading = new MeterReading()
                         {
                             CustomerId = r.CustomerId,
@@ -48,10 +88,16 @@ namespace grpc.server.Services
                     }
 
                 }
+                //test
+                catch (RpcException)
+                {
+                    throw;
+                }
+                //
                 catch (Exception ex)
                 {
-                    result.Message = "Exception thrown during process";
                     _logger.LogError($"Expecion thrown during of reading {ex}");
+                    throw new RpcException(Status.DefaultCancelled, "Exception thrown during process");
                 }
             }
 

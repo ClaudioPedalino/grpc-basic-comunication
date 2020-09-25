@@ -4,10 +4,13 @@ option csharp_namespace = "grpc.server.Service";
 
 import "enum.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 // The greeting service definition.
 service MeterReadingService {
   rpc AddReading (ReadingPacket) returns (StatusMessage);
+  rpc Test (google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc SendDiagnostics(stream ReadingMessage) returns (google.protobuf.Empty);
 }
 
 message ReadingPacket {
@@ -27,3 +30,5 @@ message StatusMessage {
   string message = 1;
   ReadingStatus success = 2;
 }
+
+
